@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, ArrowRight, Eye, EyeOff, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
   const { signIn, signUp, signInWithGoogle } = useAuth();
@@ -24,18 +23,32 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
     setLoading(true);
     if (mode === 'login') {
       const { error } = await signIn(email, password);
-      if (error) toast(error, 'error');
-      else {
+      if (error) {
+        toast(error, 'error');
+      } else {
         toast('Welcome back!');
         navigate(redirect);
       }
     } else {
       const { error } = await signUp(email, password, fullName);
-      if (error) toast(error, 'error');
-      else {
+      if (error) {
+        toast(error, 'error');
+      } else {
         toast('Account created! Welcome to BuyAndSellOutlets.');
         navigate(redirect);
       }
+    }
+    setLoading(false);
+  }
+
+  async function handleGoogleSignIn() {
+    setLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast(error, 'error');
+    } else {
+      toast('Welcome to BuyAndSellOutlets!');
+      navigate(redirect);
     }
     setLoading(false);
   }
@@ -128,11 +141,9 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
 
           {/* Google Sign-In */}
           <button
-            onClick={async () => {
-              const { error } = await signInWithGoogle();
-              if (error) toast(error, 'error');
-            }}
-            className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-navy-200 bg-white px-5 py-3 text-sm font-semibold text-navy-700 shadow-soft transition-all hover:bg-navy-50 hover:border-navy-300 active:scale-[0.98]"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="mt-4 flex w-full items-center justify-center gap-3 rounded-xl border border-navy-200 bg-white px-5 py-3 text-sm font-semibold text-navy-700 shadow-soft transition-all hover:bg-navy-50 hover:border-navy-300 active:scale-[0.98] disabled:opacity-60"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -160,12 +171,6 @@ export function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
               </>
             )}
           </div>
-
-          {!isSupabaseConfigured && (
-            <div className="mt-4 p-3 rounded-xl bg-amber-50 text-sm text-amber-700 text-center">
-              Demo Mode: Authentication is disabled. The app is running without a database.
-            </div>
-          )}
 
           {mode === 'login' && (
             <div className="mt-3 text-center">

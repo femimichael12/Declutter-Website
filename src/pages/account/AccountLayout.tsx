@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { User, Package, MapPin, Heart, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const navItems = [
   { to: '/account', label: 'Profile', icon: User, end: true },
@@ -19,16 +18,26 @@ export function AccountLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !isSupabaseConfigured) return; if (!loading && !profile) navigate('/login?redirect=/account');
+    if (!loading && !profile) {
+      navigate('/login?redirect=/account');
+    }
   }, [profile, loading, navigate]);
 
-  if (!isSupabaseConfigured) return null;
+  if (loading) {
+    return (
+      <div className="container-page py-12">
+        <div className="skeleton h-64 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!profile) return null;
 
   return (
     <div className="container-page py-8">
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-navy-900">My Account</h1>
-        <p className="text-sm text-navy-500">Welcome back, {profile!.full_name ?? profile!.email}</p>
+        <p className="text-sm text-navy-500">Welcome back, {profile.full_name || profile.email}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
@@ -36,11 +45,11 @@ export function AccountLayout() {
           <div className="card p-4">
             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-navy-100">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-royal-600 text-white font-bold">
-                {profile!.full_name?.[0]?.toUpperCase() ?? profile!.email[0]?.toUpperCase()}
+                {profile.full_name?.[0]?.toUpperCase() ?? profile.email[0]?.toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-navy-900 truncate">{profile!.full_name ?? 'Account'}</p>
-                <p className="text-xs text-navy-500 truncate">{profile!.email}</p>
+                <p className="font-semibold text-navy-900 truncate">{profile.full_name || 'Account'}</p>
+                <p className="text-xs text-navy-500 truncate">{profile.email}</p>
               </div>
             </div>
             <nav className="space-y-1">
@@ -84,19 +93,28 @@ export function AccountLayout() {
 }
 
 export function ProfilePage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, updateUserProfile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name ?? '');
+      setPhone(profile.phone ?? '');
+    }
+  }, [profile]);
+
   async function handleSave() {
+    if (!profile) return;
     setSaving(true);
-    const { error } = await supabase!.from('profiles').update({ full_name: fullName, phone }).eq('id', profile!.id);
-    if (error) toast('Failed to update profile', 'error');
-    else {
+    const { error } = await updateUserProfile({ full_name: fullName, phone });
+    if (error) {
+      toast(error, 'error');
+    } else {
       await refreshProfile();
-      toast('Profile updated');
+      toast('Profile updated successfully');
     }
     setSaving(false);
   }

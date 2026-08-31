@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronDown, Check } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { mockProducts, mockCategories } from '@/lib/mockData';
-import type { Product, Category } from '@/types';
+import type { Product, Category, Condition } from '@/types';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductGridSkeleton } from '@/components/Skeleton';
 import { isPreOwned } from '@/lib/utils';
@@ -17,7 +17,7 @@ const sortOptions = [
   { value: 'highest-rated', label: 'Highest Rated' },
 ];
 
-const conditions = ['Brand New', 'Like New', 'Excellent', 'Very Good', 'Good', 'Fair'];
+const conditions: Condition[] = ['Brand New', 'Open Box', 'Certified Pre-Owned', 'Pre-Owned', 'Refurbished', 'Like New', 'Excellent', 'Very Good', 'Good', 'Fair'];
 
 export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();

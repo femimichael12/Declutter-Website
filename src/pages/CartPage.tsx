@@ -11,6 +11,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { mockCoupons } from '@/lib/mockData';
 import { formatPrice, applyCoupon, calculateShipping } from '@/lib/utils';
 import type { Coupon } from '@/types';
+import { ProductImage } from '@/components/ProductImage';
 
 export function CartPage() {
   const { items, updateQty, removeItem, saveForLater, moveToCart, loading } = useCart();
@@ -121,7 +122,9 @@ export function CartPage() {
                 className="card p-4 flex gap-4"
               >
                 <Link to={`/product/${item.product?.slug}`} className="flex-shrink-0">
-                  <img src={item.product?.images[0]} alt={item.product?.name} className="h-24 w-24 rounded-xl object-cover" />
+                  <div className="h-24 w-24 rounded-xl bg-navy-50/60 p-2 flex items-center justify-center overflow-hidden">
+                    <ProductImage src={item.product?.images[0]} alt={item.product?.name ?? 'Product'} className="h-full w-full object-contain" />
+                  </div>
                 </Link>
                 <div className="flex-1 min-w-0">
                   <Link to={`/product/${item.product?.slug}`}>
@@ -172,7 +175,9 @@ export function CartPage() {
               <div className="space-y-3">
                 {savedItems.map((item) => (
                   <div key={item.id} className="card p-4 flex gap-4 opacity-80">
-                    <img src={item.product?.images[0]} alt={item.product?.name} className="h-20 w-20 rounded-xl object-cover" />
+                    <div className="h-20 w-20 rounded-xl bg-navy-50/60 p-2 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <ProductImage src={item.product?.images[0]} alt={item.product?.name ?? 'Product'} className="h-full w-full object-contain" />
+                    </div>
                     <div className="flex-1">
                       <h3 className="font-medium text-navy-900">{item.product?.name}</h3>
                       <p className="text-sm font-bold text-navy-900">{formatPrice(item.product?.price ?? 0)}</p>

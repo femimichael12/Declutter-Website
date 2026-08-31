@@ -6,6 +6,7 @@ import { formatPrice, discountPercent, isPreOwned } from '@/lib/utils';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
+import { ProductImage } from './ProductImage';
 
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
@@ -36,14 +37,15 @@ export function ProductCard({ product }: { product: Product }) {
       className="card group relative overflow-hidden flex flex-col"
     >
       <Link to={`/product/${product.slug}`} className="block">
-        <div className="relative aspect-square overflow-hidden bg-navy-50">
-          <img
+        <div className="relative aspect-square overflow-hidden bg-navy-100">
+          <ProductImage
             src={product.images[0]}
             alt={product.name}
             loading="lazy"
+            categorySlug={product.category_slug}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <div className="absolute top-2 left-2 flex flex-col gap-1.5">
+          <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1.5">
             {discount > 0 && (
               <span className="badge bg-rose-500 text-white shadow-soft">-{discount}%</span>
             )}
@@ -55,15 +57,15 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
           <button
             onClick={handleWishlist}
-            className="absolute top-2 right-2 rounded-full p-2 glass-strong shadow-soft transition hover:scale-110 active:scale-95"
+            className="absolute top-2.5 right-2.5 z-10 rounded-full p-2 glass-strong shadow-soft transition hover:scale-110 active:scale-95"
             aria-label="Toggle wishlist"
           >
             <Heart className={`h-4 w-4 ${wished ? 'fill-rose-500 text-rose-500' : 'text-navy-600'}`} />
           </button>
-          <div className="absolute inset-x-0 bottom-0 flex translate-y-full gap-2 p-3 transition-transform duration-300 group-hover:translate-y-0">
+          <div className="absolute inset-x-0 bottom-0 z-10 flex translate-y-full gap-2 p-3 transition-transform duration-300 group-hover:translate-y-0">
             <button
               onClick={handleAddCart}
-              className="btn-primary flex-1 text-sm py-2"
+              className="btn-primary flex-1 text-sm py-2 shadow-soft-lg"
               disabled={!inStock}
             >
               <ShoppingCart className="h-4 w-4" />
@@ -71,7 +73,7 @@ export function ProductCard({ product }: { product: Product }) {
             </button>
             <Link
               to={`/product/${product.slug}`}
-              className="btn-secondary px-3 py-2"
+              className="btn-secondary px-3 py-2 shadow-soft-lg"
               aria-label="Quick view"
             >
               <Eye className="h-4 w-4" />

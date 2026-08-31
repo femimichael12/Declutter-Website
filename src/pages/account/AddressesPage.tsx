@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, MapPin, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import type { Address } from '@/types';
@@ -15,43 +16,117 @@ export function AddressesPage() {
     full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', postal_code: '',
   });
 
+  const getStorageKey = () => (session?.user?.id ? `addresses_${session.user.id}` : 'addresses_guest');
+
   useEffect(() => {
     async function load() {
-      if (!isSupabaseConfigured || !supabase) return;
-    if (!session) return;
-      const { data } = await supabase!.from('addresses').select('*').eq('user_id', session.user.id).order('is_default', { ascending: false });
-      setAddresses(data as Address[] ?? []);
+      if (!session?.user?.id) return;
+
+      // Try Firestore first
+      if (db) {
+        try {
+          const q = query(collection(db, 'addresses'), where('user_id', '==', session.user.id));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const list: Address[] = [];
+            snap.forEach((d) => {
+              list.push({ id: d.id, ...(d.data() as Omit<Address, 'id'>) });
+            });
+            list.sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
+            setAddresses(list);
+            return;
+          }
+        } catch (err) {
+          console.warn('Could not read addresses from Firestore, checking localStorage:', err);
+        }
+      }
+
+      // Fallback to localStorage
+      try {
+        const raw = localStorage.getItem(getStorageKey());
+        if (raw) {
+          setAddresses(JSON.parse(raw));
+        }
+      } catch {
+        setAddresses([]);
+      }
     }
     load();
   }, [session]);
 
-  async function addAddress() {
-    if (!session) return;
-    const { data } = await supabase!.from('addresses').insert({
-      user_id: session.user.id,
-      label: 'Address',
-      ...form,
-      is_default: addresses.length === 0,
-    }).select().maybeSingle();
-    if (data) {
-      setAddresses((prev) => [...prev, data as Address]);
-      setForm({ full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', postal_code: '' });
-      setShowForm(false);
-      toast('Address added');
+  function saveToLocal(list: Address[]) {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(list));
+    } catch {
+      // ignore
     }
   }
 
+  async function addAddress() {
+    if (!session?.user?.id) return;
+    const isFirst = addresses.length === 0;
+    const newAddrData = {
+      user_id: session.user.id,
+      label: 'Address',
+      ...form,
+      country: 'Nigeria',
+      is_default: isFirst,
+      created_at: new Date().toISOString(),
+    };
+
+    let createdId = `addr-${Date.now()}`;
+
+    if (db) {
+      try {
+        const docRef = await addDoc(collection(db, 'addresses'), newAddrData);
+        createdId = docRef.id;
+      } catch (err) {
+        console.warn('Failed to add address in Firestore, saving locally:', err);
+      }
+    }
+
+    const newAddr: Address = { id: createdId, ...newAddrData };
+    const next = isFirst ? [newAddr] : [...addresses, newAddr];
+    setAddresses(next);
+    saveToLocal(next);
+    setForm({ full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', postal_code: '' });
+    setShowForm(false);
+    toast('Address added');
+  }
+
   async function deleteAddress(id: string) {
-    await supabase!.from('addresses').delete().eq('id', id);
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'addresses', id));
+      } catch (err) {
+        console.warn('Failed to delete address from Firestore:', err);
+      }
+    }
+    const next = addresses.filter((a) => a.id !== id);
+    setAddresses(next);
+    saveToLocal(next);
     toast('Address removed', 'info');
   }
 
   async function setDefault(id: string) {
-    if (!session) return;
-    await supabase!.from('addresses').update({ is_default: false }).eq('user_id', session.user.id).neq('id', id);
-    await supabase!.from('addresses').update({ is_default: true }).eq('id', id);
-    setAddresses((prev) => prev.map((a) => ({ ...a, is_default: a.id === id })));
+    if (!session?.user?.id) return;
+
+    if (db) {
+      try {
+        const firestore = db;
+        const batch = writeBatch(firestore);
+        addresses.forEach((a) => {
+          batch.update(doc(firestore, 'addresses', a.id), { is_default: a.id === id });
+        });
+        await batch.commit();
+      } catch (err) {
+        console.warn('Failed to update default address in Firestore:', err);
+      }
+    }
+
+    const next = addresses.map((a) => ({ ...a, is_default: a.id === id }));
+    setAddresses(next);
+    saveToLocal(next);
     toast('Default address updated');
   }
 

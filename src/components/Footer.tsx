@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Shield, Truck, RotateCcw, Headphones, ShoppingBag } from 'lucide-react';
 import { useSettings } from '@/context/SettingsContext';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { Logo } from './Logo';
 
 const trustBadges = [
@@ -98,9 +97,6 @@ export function Footer() {
         <div className="mt-10 border-t border-navy-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-navy-500">
             &copy; {new Date().getFullYear()} BuyAndSellOutlets. All rights reserved.
-            {!isSupabaseConfigured && (
-              <span className="badge bg-amber-100 text-amber-700">Demo Mode — No Database</span>
-            )}
           </p>
           <p className="text-xs text-navy-500">
             Secure payments by Paystack & Flutterwave

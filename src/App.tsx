@@ -8,6 +8,7 @@ import { ToastProvider } from '@/context/ToastContext';
 import { RecentlyViewedProvider } from '@/context/RecentlyViewedContext';
 import { CompareProvider } from '@/context/CompareContext';
 import { Layout } from '@/components/Layout';
+import { ScrollToTop } from '@/components/ScrollToTop';
 import { HomePage } from '@/pages/HomePage';
 import { ProductsPage } from '@/pages/ProductsPage';
 import { ProductDetailsPage } from '@/pages/ProductDetailsPage';
@@ -47,6 +48,7 @@ export default function App() {
                 <RecentlyViewedProvider>
                   <CompareProvider>
                     <BrowserRouter>
+                      <ScrollToTop />
                       <Routes>
                         <Route element={<Layout />}>
                           <Route path="/" element={<HomePage />} />

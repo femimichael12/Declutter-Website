@@ -6,8 +6,9 @@ import { mockProducts, mockCategories } from '@/lib/mockData';
 import { useToast } from '@/context/ToastContext';
 import { formatPrice, slugify } from '@/lib/utils';
 import type { Product, Category, Condition } from '@/types';
+import { ProductImage } from '@/components/ProductImage';
 
-const conditions: Condition[] = ['Brand New', 'Like New', 'Excellent', 'Very Good', 'Good', 'Fair'];
+const conditions: Condition[] = ['Brand New', 'Open Box', 'Certified Pre-Owned', 'Pre-Owned', 'Refurbished', 'Like New', 'Excellent', 'Very Good', 'Good', 'Fair'];
 
 interface FormState {
   name: string;
@@ -199,7 +200,9 @@ export function AdminProducts() {
                   <tr key={p.id} className="hover:bg-navy-50/50 transition">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <img src={p.images[0]} alt={p.name} className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />
+                        <div className="h-10 w-10 rounded-lg bg-navy-50/80 p-0.5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <ProductImage src={p.images[0]} alt={p.name} className="h-full w-full object-contain" />
+                        </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-navy-900 truncate max-w-[200px]">{p.name}</p>
                           <p className="text-xs text-navy-500">{p.condition}</p>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { GitCompare, X, Check } from 'lucide-react';
 import { useCompare } from '@/context/CompareContext';
 import { formatPrice, isPreOwned } from '@/lib/utils';
+import { ProductImage } from '@/components/ProductImage';
 
 export function ComparePage() {
   const { products, toggle, clear } = useCompare();
@@ -46,7 +47,9 @@ export function ComparePage() {
                   <X className="h-4 w-4" />
                 </button>
                 <Link to={`/product/${p.slug}`}>
-                  <img src={p.images[0]} alt={p.name} className="h-32 w-full rounded-lg object-cover mb-2" />
+                  <div className="h-32 w-full rounded-lg bg-navy-50/60 p-2 flex items-center justify-center mb-2 overflow-hidden">
+                    <ProductImage src={p.images[0]} alt={p.name} className="h-full w-full object-contain" />
+                  </div>
                   <h3 className="text-sm font-semibold text-navy-900 line-clamp-2 hover:text-royal-600 transition">{p.name}</h3>
                 </Link>
               </div>

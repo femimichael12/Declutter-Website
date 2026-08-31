@@ -12,6 +12,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { mockProducts } from '@/lib/mockData';
 import type { Product } from '@/types';
 import { Logo } from './Logo';
+import { ProductImage } from './ProductImage';
 
 const navLinks = [
   { label: 'Home', path: '/' },
@@ -134,7 +135,9 @@ export function Navbar() {
                         to={`/product/${p.slug}`}
                         className="flex items-center gap-3 p-3 hover:bg-navy-50 transition"
                       >
-                        <img src={p.images[0]} alt={p.name} className="h-12 w-12 rounded-lg object-cover" />
+                        <div className="h-12 w-12 rounded-lg bg-navy-50/80 p-1 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <ProductImage src={p.images[0]} alt={p.name} className="h-full w-full object-contain" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-navy-900 truncate">{p.name}</p>
                           <p className="text-xs text-navy-500">{p.brand}</p>

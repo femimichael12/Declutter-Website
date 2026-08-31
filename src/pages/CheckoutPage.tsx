@@ -6,10 +6,12 @@ import { useCart } from '@/context/CartContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 import { mockCoupons } from '@/lib/mockData';
 import { formatPrice, applyCoupon, calculateShipping } from '@/lib/utils';
 import type { Address, Coupon, OrderStatus, PaymentStatus } from '@/types';
+import { ProductImage } from '@/components/ProductImage';
 
 type Step = 'shipping' | 'billing' | 'delivery' | 'payment' | 'confirmation';
 type PaymentMethod = 'paystack' | 'flutterwave' | 'card' | 'bank_transfer';
@@ -66,56 +68,79 @@ export function CheckoutPage() {
   const total = subtotal - discount + shipping;
 
   useEffect(() => {
-    if (isSupabaseConfigured && !session) {
+    if (!session) {
       navigate('/login?redirect=/checkout');
       return;
     }
-    if (!isSupabaseConfigured || !supabase || !session) return;
     async function loadAddresses() {
-      const { data } = await supabase!.from('addresses').select('*').eq('user_id', session!.user.id).order('is_default', { ascending: false });
-      setAddresses(data as Address[] ?? []);
-      if (data && data.length > 0) setSelectedAddressId(data[0].id);
+      if (db && session?.user?.id) {
+        try {
+          const q = query(collection(db, 'addresses'), where('user_id', '==', session.user.id));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const list: Address[] = [];
+            snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<Address, 'id'>) }));
+            list.sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
+            setAddresses(list);
+            if (list.length > 0) setSelectedAddressId(list[0].id);
+            return;
+          }
+        } catch {
+          // fallback
+        }
+      }
+      try {
+        const raw = localStorage.getItem(`addresses_${session?.user?.id}`);
+        if (raw) {
+          const list: Address[] = JSON.parse(raw);
+          setAddresses(list);
+          if (list.length > 0) setSelectedAddressId(list[0].id);
+        }
+      } catch {
+        // ignore
+      }
     }
     loadAddresses();
   }, [session, navigate]);
 
   async function applyCouponCode() {
     if (!couponCode.trim()) return;
-    if (!isSupabaseConfigured || !supabase) {
-      const coupon = mockCoupons.find((c) => c.code === couponCode.trim().toUpperCase());
-      if (!coupon) { toast('Invalid coupon code', 'error'); return; }
-      setAppliedCoupon(coupon);
-      toast('Coupon applied');
-      return;
-    }
-    const { data } = await supabase.from('coupons').select('*').eq('code', couponCode.trim().toUpperCase()).eq('is_active', true).maybeSingle();
-    if (!data) {
+    const coupon = mockCoupons.find((c) => c.code === couponCode.trim().toUpperCase());
+    if (!coupon) {
       toast('Invalid coupon code', 'error');
       return;
     }
-    setAppliedCoupon(data as Coupon);
+    setAppliedCoupon(coupon);
     toast('Coupon applied');
   }
 
   async function saveAddress() {
-    if (!isSupabaseConfigured || !supabase || !session) {
-      const demoAddr: Address = {
-        id: `addr-${Date.now()}`, user_id: 'demo', label: 'Checkout',
-        ...addr, country: 'Nigeria', is_default: addresses.length === 0, created_at: new Date().toISOString(),
-      } as unknown as Address;
-      setAddresses((prev) => [demoAddr, ...prev]);
-      setSelectedAddressId(demoAddr.id);
-      return;
-    }
-    const { data } = await supabase.from('addresses').insert({
+    if (!session) return;
+    const newAddrData = {
       user_id: session.user.id,
       label: 'Checkout',
       ...addr,
+      country: 'Nigeria',
       is_default: addresses.length === 0,
-    }).select().maybeSingle();
-    if (data) {
-      setAddresses((prev) => [data as Address, ...prev]);
-      setSelectedAddressId(data.id);
+      created_at: new Date().toISOString(),
+    };
+    let createdId = `addr-${Date.now()}`;
+    if (db) {
+      try {
+        const docRef = await addDoc(collection(db, 'addresses'), newAddrData);
+        createdId = docRef.id;
+      } catch {
+        // fallback
+      }
+    }
+    const newAddr: Address = { id: createdId, ...newAddrData };
+    const next = [newAddr, ...addresses];
+    setAddresses(next);
+    setSelectedAddressId(createdId);
+    try {
+      localStorage.setItem(`addresses_${session.user.id}`, JSON.stringify(next));
+    } catch {
+      // ignore
     }
   }
 
@@ -138,17 +163,14 @@ export function CheckoutPage() {
       toast('Please select a shipping address', 'error');
       return;
     }
+    if (!session) {
+      toast('Please sign in to complete checkout', 'error');
+      navigate('/login?redirect=/checkout');
+      return;
+    }
     setPlacingOrder(true);
     try {
-      if (!isSupabaseConfigured || !supabase || !session) {
-        setOrderId(`demo-${Date.now()}`);
-        await clearCart();
-        setStep('confirmation');
-        toast('Order placed successfully! (Demo Mode)');
-        setPlacingOrder(false);
-        return;
-      }
-      const { data: order, error } = await supabase.from('orders').insert({
+      const orderData = {
         user_id: session.user.id,
         status: 'pending' as OrderStatus,
         subtotal,
@@ -160,38 +182,69 @@ export function CheckoutPage() {
         payment_method: paymentMethod,
         payment_status: 'unpaid' as PaymentStatus,
         shipping_address: selectedAddress as unknown as Record<string, unknown>,
-        billing_address: billingSame ? selectedAddress as unknown as Record<string, unknown> : null,
+        billing_address: billingSame ? (selectedAddress as unknown as Record<string, unknown>) : null,
         notes: '',
-      }).select().maybeSingle();
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error || !order) {
-        toast('Failed to place order. Please try again.', 'error');
-        setPlacingOrder(false);
-        return;
+      let createdOrderId = `ord-${Date.now()}`;
+      if (db) {
+        try {
+          const docRef = await addDoc(collection(db, 'orders'), orderData);
+          createdOrderId = docRef.id;
+
+          for (const item of activeItems) {
+            await addDoc(collection(db, 'order_items'), {
+              order_id: createdOrderId,
+              product_id: item.product_id,
+              name: item.product?.name ?? '',
+              brand: item.product?.brand ?? null,
+              image_url: item.product?.images[0] ?? null,
+              price: item.product?.price ?? 0,
+              quantity: item.quantity,
+              condition: item.product?.condition ?? null,
+            });
+          }
+
+          await addDoc(collection(db, 'notifications'), {
+            user_id: session.user.id,
+            title: 'Order Placed Successfully',
+            body: `Your order #${createdOrderId.slice(0, 8)} has been received and is being processed.`,
+            type: 'order',
+            is_read: false,
+            link: '/account/orders',
+            created_at: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.warn('Firestore order placement fallback to local:', err);
+        }
       }
 
-      const orderItems = activeItems.map((item) => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        name: item.product?.name ?? '',
-        brand: item.product?.brand ?? null,
-        image_url: item.product?.images[0] ?? null,
-        price: item.product?.price ?? 0,
-        quantity: item.quantity,
-        condition: item.product?.condition ?? null,
-      }));
+      // Save locally as well
+      try {
+        const existingRaw = localStorage.getItem(`orders_${session.user.id}`);
+        const existingOrders = existingRaw ? JSON.parse(existingRaw) : [];
+        const fullOrder = { id: createdOrderId, ...orderData };
+        localStorage.setItem(`orders_${session.user.id}`, JSON.stringify([fullOrder, ...existingOrders]));
 
-      await supabase.from('order_items').insert(orderItems);
+        const orderItems = activeItems.map((item) => ({
+          id: `item-${Date.now()}-${item.product_id}`,
+          order_id: createdOrderId,
+          product_id: item.product_id,
+          name: item.product?.name ?? '',
+          brand: item.product?.brand ?? null,
+          image_url: item.product?.images[0] ?? null,
+          price: item.product?.price ?? 0,
+          quantity: item.quantity,
+          condition: item.product?.condition ?? null,
+        }));
+        localStorage.setItem(`order_items_${createdOrderId}`, JSON.stringify(orderItems));
+      } catch {
+        // ignore
+      }
 
-      await supabase.from('notifications').insert({
-        user_id: session.user.id,
-        title: 'Order Placed Successfully',
-        body: `Your order ${order.id.slice(0, 8)} has been received and is being processed.`,
-        type: 'order',
-        link: '/account/orders',
-      });
-
-      setOrderId(order.id);
+      setOrderId(createdOrderId);
       await clearCart();
       setStep('confirmation');
       toast('Order placed successfully!');
@@ -431,8 +484,10 @@ export function CheckoutPage() {
 
               <div className="space-y-3 max-h-64 overflow-y-auto mb-4">
                 {activeItems.map((item) => (
-                  <div key={item.id} className="flex gap-3">
-                    <img src={item.product?.images[0]} alt={item.product?.name} className="h-14 w-14 rounded-lg object-cover flex-shrink-0" />
+                  <div key={item.id} className="flex gap-3 items-center">
+                    <div className="h-14 w-14 rounded-lg bg-navy-50/60 p-1 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <ProductImage src={item.product?.images[0]} alt={item.product?.name ?? 'Product'} className="h-full w-full object-contain" />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-navy-900 truncate">{item.product?.name}</p>
                       <p className="text-xs text-navy-500">Qty: {item.quantity}</p>

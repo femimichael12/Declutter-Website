@@ -6,7 +6,6 @@ import {
   Settings, Star, Menu, X, ShoppingBag, ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -21,18 +20,26 @@ const navItems = [
 ];
 
 export function AdminLayout() {
-  const { profile, loading, isAdmin, isDemoMode } = useAuth();
+  const { profile, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !isDemoMode && (!profile || !isAdmin)) navigate('/');
-  }, [profile, loading, isAdmin, isDemoMode, navigate]);
+    if (!loading && (!profile || !isAdmin)) navigate('/');
+  }, [profile, loading, isAdmin, navigate]);
 
   useEffect(() => setSidebarOpen(false), [location.pathname]);
 
-  if (!isDemoMode && (!profile || !isAdmin)) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-navy-50 flex items-center justify-center">
+        <div className="skeleton h-32 w-32 rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!profile || !isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-navy-50 flex">
@@ -99,15 +106,12 @@ export function AdminLayout() {
           </button>
           <div className="hidden lg:block">
             <p className="text-sm text-navy-500">
-              Welcome, <span className="font-semibold text-navy-900">{isDemoMode ? 'Demo Admin' : (profile?.full_name ?? 'Admin')}</span>
+              Welcome, <span className="font-semibold text-navy-900">{profile?.full_name ?? profile?.email ?? 'Admin'}</span>
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {isDemoMode && (
-              <span className="badge bg-amber-100 text-amber-700">Demo Mode</span>
-            )}
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-royal-600 text-white text-xs font-bold">
-              {isDemoMode ? 'D' : (profile?.full_name?.[0]?.toUpperCase() ?? 'A')}
+              {profile?.full_name?.[0]?.toUpperCase() ?? profile?.email?.[0]?.toUpperCase() ?? 'A'}
             </div>
           </div>
         </header>

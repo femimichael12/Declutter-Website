@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Bell, Check, Package, Info, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import type { Notification } from '@/types';
 
@@ -17,23 +18,79 @@ export function NotificationsPage() {
 
   useEffect(() => {
     async function load() {
-      if (!isSupabaseConfigured || !supabase) return;
-    if (!session) return;
-      const { data } = await supabase!.from('notifications').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-      setNotifications(data as Notification[] ?? []);
+      if (!session?.user?.id) {
+        setNotifications([]);
+        return;
+      }
+
+      if (db) {
+        try {
+          const q = query(collection(db, 'notifications'), where('user_id', '==', session.user.id));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const list: Notification[] = [];
+            snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<Notification, 'id'>) }));
+            list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setNotifications(list);
+            return;
+          }
+        } catch (err) {
+          console.warn('Firestore notifications fallback:', err);
+        }
+      }
+
+      try {
+        const raw = localStorage.getItem(`notifications_${session.user.id}`);
+        if (raw) {
+          setNotifications(JSON.parse(raw));
+        } else {
+          setNotifications([]);
+        }
+      } catch {
+        setNotifications([]);
+      }
     }
     load();
   }, [session]);
 
+  function saveToLocal(list: Notification[]) {
+    if (session?.user?.id) {
+      try {
+        localStorage.setItem(`notifications_${session.user.id}`, JSON.stringify(list));
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   async function markRead(id: string) {
-    await supabase!.from('notifications').update({ is_read: true }).eq('id', id);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    if (db) {
+      try {
+        await updateDoc(doc(db, 'notifications', id), { is_read: true });
+      } catch {
+        // ignore
+      }
+    }
+    const next = notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n));
+    setNotifications(next);
+    saveToLocal(next);
   }
 
   async function markAllRead() {
-    if (!session) return;
-    await supabase!.from('notifications').update({ is_read: true }).eq('user_id', session.user.id).eq('is_read', false);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    if (!session?.user?.id) return;
+    if (db) {
+      try {
+        const unread = notifications.filter((n) => !n.is_read);
+        for (const u of unread) {
+          await updateDoc(doc(db, 'notifications', u.id), { is_read: true }).catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const next = notifications.map((n) => ({ ...n, is_read: true }));
+    setNotifications(next);
+    saveToLocal(next);
   }
 
   return (

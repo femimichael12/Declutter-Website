@@ -83,9 +83,9 @@ export function HomePage() {
       <HeroCarousel />
 
             {/* Shop by Category */}
-      <section className="container-page mt-12">
+      <section className="container-page mt-8 sm:mt-12">
         <SectionHeader title="Shop by Category" subtitle="Find exactly what you're looking for" />
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3 lg:grid-cols-10">
           {categories.map((cat, i) => {
             const Icon = (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[cat.icon ?? 'Package'] ?? LucideIcons.Package;
             return (
@@ -94,16 +94,16 @@ export function HomePage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.03 }}
+                transition={{ delay: i * 0.02 }}
               >
                 <Link
                   to={`/products?category=${cat.slug}`}
-                  className="card flex flex-col items-center gap-2 p-4 hover:shadow-soft-lg hover:border-royal-300 transition-all group"
+                  className="card flex flex-col items-center gap-1.5 sm:gap-2 p-2 sm:p-3.5 hover:shadow-soft-lg hover:border-royal-300 transition-all group"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-royal-50 text-royal-600 group-hover:bg-royal-600 group-hover:text-white transition-colors">
-                    <Icon className="h-6 w-6" />
+                  <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-royal-50 text-royal-600 group-hover:bg-royal-600 group-hover:text-white transition-colors">
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
-                  <span className="text-xs font-medium text-center text-navy-700">{cat.name}</span>
+                  <span className="text-[11px] sm:text-xs font-medium text-center text-navy-700 leading-tight truncate w-full">{cat.name}</span>
                 </Link>
               </motion.div>
             );
@@ -175,10 +175,10 @@ export function HomePage() {
         </section>
       )}
 
-      {/* Brand New */}
+      {/* Trending Catalog */}
       {brandNew.length > 0 && (
         <section className="container-page mt-12">
-          <SectionHeader title="Brand New Products" subtitle="Latest models, sealed and warrantied" link="/products?condition=new" />
+          <SectionHeader title="Trending Electronics" subtitle="Latest flagship models, sealed and warrantied" link="/products" />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {brandNew.slice(0, 8).map((p) => <ProductCard key={p.id} product={p} />)}
           </div>

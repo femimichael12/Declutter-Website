@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { mockProducts } from '@/lib/mockData';
 import type { WishlistItem, Product } from '@/types';
@@ -13,7 +12,40 @@ interface WishlistContextValue {
 }
 
 const WishlistContext = createContext<WishlistContextValue | undefined>(undefined);
-const STORAGE_KEY = 'demo-wishlist';
+const STORAGE_KEY = 'buyandselloutlets_wishlist';
+
+function loadWishlist(userId?: string): WishlistItem[] {
+  try {
+    const key = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
+    const raw = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    return ids
+      .map((id) => {
+        const product = mockProducts.find((p) => p.id === id);
+        return {
+          id: `wl-${id}`,
+          user_id: userId || 'guest',
+          product_id: id,
+          created_at: new Date().toISOString(),
+          product,
+        };
+      })
+      .filter((i) => i.product) as WishlistItem[];
+  } catch {
+    return [];
+  }
+}
+
+function saveWishlist(items: WishlistItem[], userId?: string) {
+  try {
+    const key = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
+    const ids = items.map((i) => i.product_id);
+    localStorage.setItem(key, JSON.stringify(ids));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
@@ -21,47 +53,31 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const ids: string[] = raw ? JSON.parse(raw) : [];
-        setItems(ids.map((id) => {
-          const product = mockProducts.find((p) => p.id === id);
-          return { id: `wl-${id}`, user_id: 'demo', product_id: id, created_at: new Date().toISOString(), product };
-        }).filter((i) => i.product) as WishlistItem[]);
-      } catch { /* ignore */ }
-      setLoading(false);
-      return;
-    }
-    if (!session?.user?.id) { setItems([]); setLoading(false); return; }
-    (async () => {
-      const { data } = await supabase!.from('wishlists').select('*, product:products(*)').eq('user_id', session.user.id).order('created_at', { ascending: false });
-      setItems((data as WishlistItem[]) ?? []);
-      setLoading(false);
-    })();
+    setItems(loadWishlist(session?.user?.id));
+    setLoading(false);
   }, [session]);
 
   async function toggle(product: Product) {
-    if (!isSupabaseConfigured || !supabase) {
-      setItems((prev) => {
-        const exists = prev.some((i) => i.product_id === product.id);
-        let next: WishlistItem[];
-        if (exists) next = prev.filter((i) => i.product_id !== product.id);
-        else next = [{ id: `wl-${product.id}`, user_id: 'demo', product_id: product.id, created_at: new Date().toISOString(), product }, ...prev];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next.map((i) => i.product_id)));
-        return next;
-      });
-      return;
-    }
-    if (!session?.user?.id) return;
-    const existing = items.find((i) => i.product_id === product.id);
-    if (existing) {
-      await supabase.from('wishlists').delete().eq('id', existing.id);
-      setItems((prev) => prev.filter((i) => i.id !== existing.id));
-    } else {
-      const { data } = await supabase.from('wishlists').insert({ user_id: session.user.id, product_id: product.id }).select('*, product:products(*)').maybeSingle();
-      if (data) setItems((prev) => [data as WishlistItem, ...prev]);
-    }
+    setItems((prev) => {
+      const exists = prev.some((i) => i.product_id === product.id);
+      let next: WishlistItem[];
+      if (exists) {
+        next = prev.filter((i) => i.product_id !== product.id);
+      } else {
+        next = [
+          {
+            id: `wl-${product.id}`,
+            user_id: session?.user?.id || 'guest',
+            product_id: product.id,
+            created_at: new Date().toISOString(),
+            product,
+          },
+          ...prev,
+        ];
+      }
+      saveWishlist(next, session?.user?.id);
+      return next;
+    });
   }
 
   const ids = new Set(items.map((i) => i.product_id));

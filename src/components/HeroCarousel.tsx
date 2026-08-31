@@ -21,12 +21,12 @@ const slides: Slide[] = [
     id: 'slide-1',
     productSlug: 'iphone-16-pro-max-256gb',
     headline: 'Meet the New iPhone 16 Pro Max',
-    subheadline: 'Titanium design. Apple Intelligence. Incredible battery life. Experience Apple\u2019s most advanced iPhone.',
+    subheadline: 'Titanium design. Apple Intelligence. Incredible battery life. Experience Apple’s most advanced iPhone.',
     primaryCta: 'Shop iPhone 16 Pro Max',
     primaryLink: '/product/iphone-16-pro-max-256gb',
     secondaryCta: 'View Details',
     secondaryLink: '/product/iphone-16-pro-max-256gb',
-    image: 'https://images.pexels.com/photos/16005007/pexels-photo-16005007.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#2563EB',
   },
   {
@@ -34,11 +34,11 @@ const slides: Slide[] = [
     productSlug: 'samsung-galaxy-s24-ultra',
     headline: 'Galaxy AI Changes Everything',
     subheadline: 'Capture every detail with the 200MP camera and unleash the power of Galaxy AI.',
-    primaryCta: 'Explore Galaxy S25 Ultra',
+    primaryCta: 'Explore Galaxy S24 Ultra',
     primaryLink: '/product/samsung-galaxy-s24-ultra',
     secondaryCta: 'View Details',
     secondaryLink: '/product/samsung-galaxy-s24-ultra',
-    image: 'https://images.pexels.com/photos/38691715/pexels-photo-38691715.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#10B981',
   },
   {
@@ -50,7 +50,7 @@ const slides: Slide[] = [
     primaryLink: '/product/macbook-pro-14-m4-pro',
     secondaryCta: 'View Details',
     secondaryLink: '/product/macbook-pro-14-m4-pro',
-    image: 'https://images.pexels.com/photos/4006158/pexels-photo-4006158.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#2563EB',
   },
   {
@@ -62,7 +62,7 @@ const slides: Slide[] = [
     primaryLink: '/product/playstation-5-slim',
     secondaryCta: 'View Details',
     secondaryLink: '/product/playstation-5-slim',
-    image: 'https://images.pexels.com/photos/11633745/pexels-photo-11633745.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#10B981',
   },
   {
@@ -74,7 +74,7 @@ const slides: Slide[] = [
     primaryLink: '/product/lg-2hp-inverter-air-conditioner',
     secondaryCta: 'View Details',
     secondaryLink: '/product/lg-2hp-inverter-air-conditioner',
-    image: 'https://images.pexels.com/photos/8082565/pexels-photo-8082565.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#2563EB',
   },
   {
@@ -86,7 +86,7 @@ const slides: Slide[] = [
     primaryLink: '/product/samsung-55-qled-4k-tv',
     secondaryCta: 'View Details',
     secondaryLink: '/product/samsung-55-qled-4k-tv',
-    image: 'https://images.pexels.com/photos/13348768/pexels-photo-13348768.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#10B981',
   },
   {
@@ -98,7 +98,7 @@ const slides: Slide[] = [
     primaryLink: '/product/dell-xps-15',
     secondaryCta: 'View Details',
     secondaryLink: '/product/dell-xps-15',
-    image: 'https://images.pexels.com/photos/450035/pexels-photo-450035.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080',
+    image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=1920&h=1080&q=85',
     accent: '#2563EB',
   },
 ];

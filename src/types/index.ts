@@ -1,4 +1,4 @@
-export type Condition = 'Brand New' | 'Like New' | 'Excellent' | 'Very Good' | 'Good' | 'Fair';
+export type Condition = 'Brand New' | 'Open Box' | 'Certified Pre-Owned' | 'Pre-Owned' | 'Refurbished' | 'Like New' | 'Excellent' | 'Very Good' | 'Good' | 'Fair';
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'failed';
 export type PaymentMethod = 'paystack' | 'flutterwave' | 'card' | 'bank_transfer';
@@ -45,7 +45,13 @@ export interface Product {
   name: string;
   slug: string;
   brand: string;
+  model?: string;
+  storage?: string | null;
+  ram?: string | null;
+  processor?: string | null;
   category_id: string | null;
+  category_slug?: string;
+  subcategory?: string | null;
   short_description: string | null;
   description: string | null;
   price: number;

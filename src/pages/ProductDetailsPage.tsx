@@ -3,8 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Star, Heart, Share2, ShoppingCart, Zap, ShieldCheck, Truck,
-  RotateCcw, Check, ChevronRight, Minus, Plus, GitCompare,
-  Battery, Eye, FileCheck, Package, Clock,
+  RotateCcw, Check, ChevronRight, ChevronLeft, Minus, Plus, GitCompare,
+  Battery, Eye, FileCheck, Package, Clock, Maximize2, X,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { mockProducts, mockSpecs, mockConditionReports, mockReviews } from '@/lib/mockData';
@@ -18,6 +18,7 @@ import { useToast } from '@/context/ToastContext';
 import { useAuth } from '@/context/AuthContext';
 import { ConditionBadge } from '@/components/ConditionBadge';
 import { ProductCard } from '@/components/ProductCard';
+import { ProductImage } from '@/components/ProductImage';
 
 export function ProductDetailsPage() {
   const { slug } = useParams();
@@ -40,9 +41,15 @@ export function ProductDetailsPage() {
   const [qty, setQty] = useState(1);
   const [zoom, setZoom] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description');
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    setActiveImage(0);
+    setQty(1);
+    setActiveTab('description');
+
     async function load() {
       setLoading(true);
       if (!isSupabaseConfigured || !supabase) {
@@ -88,6 +95,18 @@ export function ProductDetailsPage() {
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setZoomPos({ x, y });
+  }
+
+  function nextImage(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    if (!product || product.images.length <= 1) return;
+    setActiveImage((prev) => (prev + 1) % product.images.length);
+  }
+
+  function prevImage(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    if (!product || product.images.length <= 1) return;
+    setActiveImage((prev) => (prev - 1 + product.images.length) % product.images.length);
   }
 
   async function handleAddCart() {
@@ -167,39 +186,92 @@ export function ProductDetailsPage() {
 
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Image gallery */}
-        <div>
+        <div className="flex flex-col">
           <div
-            className="relative aspect-square overflow-hidden rounded-3xl card cursor-zoom-in"
+            className="group relative aspect-[4/3] sm:aspect-[16/11] lg:aspect-[4/3] min-h-[380px] sm:min-h-[460px] lg:min-h-[500px] w-full overflow-hidden rounded-3xl card border border-navy-100/90 shadow-soft-lg flex items-center justify-center bg-navy-950/[0.03] select-none cursor-zoom-in"
             onMouseEnter={() => setZoom(true)}
             onMouseLeave={() => setZoom(false)}
             onMouseMove={handleMouseMove}
           >
-            <img
+            {/* Ambient subtle studio glow */}
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-125 pointer-events-none transition-all duration-700"
+              style={{ backgroundImage: `url(${product.images[activeImage]})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-navy-950/10 via-transparent to-white/30 pointer-events-none" />
+
+            {/* Main high-resolution product image */}
+            <ProductImage
               src={product.images[activeImage]}
               alt={product.name}
-              className="h-full w-full object-cover transition-transform duration-300"
-              style={zoom ? { transform: `scale(2)`, transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : undefined}
+              categorySlug={product.category_slug}
+              className="h-full w-full object-cover transition-transform duration-500 relative z-10"
+              style={zoom ? { transform: `scale(1.8)`, transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : undefined}
             />
+
+            {/* Badges */}
             {discount > 0 && (
-              <span className="absolute top-4 left-4 badge bg-rose-500 text-white shadow-soft-lg">-{discount}%</span>
+              <span className="absolute top-4 left-4 z-20 badge bg-rose-500 text-white shadow-soft-lg font-semibold text-xs">
+                -{discount}%
+              </span>
             )}
             {product.is_flash_deal && (
-              <span className="absolute top-4 right-4 badge bg-amber-500 text-white shadow-soft-lg">
+              <span className="absolute top-4 right-14 z-20 badge bg-amber-500 text-white shadow-soft-lg font-semibold text-xs flex items-center gap-1">
                 <Zap className="h-3 w-3" /> Flash Deal
               </span>
             )}
+
+            {/* Fullscreen Lightbox trigger */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxOpen(true);
+              }}
+              className="absolute top-4 right-4 z-20 p-2.5 rounded-xl glass-strong text-navy-700 hover:text-royal-600 hover:scale-105 transition shadow-soft opacity-90 hover:opacity-100"
+              title="View fullscreen image"
+              aria-label="View fullscreen image"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+
+            {/* Floating Prev/Next Image Arrows */}
+            {product.images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2.5 rounded-full glass-strong text-navy-800 hover:bg-white hover:text-royal-600 shadow-soft-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                  aria-label="Previous image"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2.5 rounded-full glass-strong text-navy-800 hover:bg-white hover:text-royal-600 shadow-soft-md transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+                <div className="absolute bottom-4 right-4 z-20 px-3 py-1 rounded-full glass-strong text-xs font-semibold text-navy-700 shadow-soft">
+                  {activeImage + 1} / {product.images.length}
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Gallery Thumbnails */}
           {product.images.length > 1 && (
-            <div className="mt-4 flex gap-3 overflow-x-auto no-scrollbar">
+            <div className="mt-4 flex gap-3 overflow-x-auto no-scrollbar pb-1">
               {product.images.map((img, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveImage(i)}
-                  className={`h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 transition ${
-                    activeImage === i ? 'border-royal-600' : 'border-transparent opacity-70 hover:opacity-100'
+                  className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl border-2 transition p-1 bg-navy-50/80 shadow-soft hover:shadow-soft-md ${
+                    activeImage === i
+                      ? 'border-royal-600 ring-2 ring-royal-200 shadow-soft-md scale-[1.02]'
+                      : 'border-transparent opacity-75 hover:opacity-100 hover:border-navy-200'
                   }`}
                 >
-                  <img src={img} alt={`${product.name} ${i + 1}`} className="h-full w-full object-cover" />
+                  <ProductImage src={img} alt={`${product.name} ${i + 1}`} className="h-full w-full object-contain rounded-xl" />
                 </button>
               ))}
             </div>
@@ -455,6 +527,55 @@ export function ProductDetailsPage() {
           <h2 className="font-display text-xl font-bold text-navy-900 mb-4">Related Products</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {related.map((p) => <ProductCard key={p.id} product={p} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Lightbox Modal */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-navy-950/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 select-none"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            onClick={() => setLightboxOpen(false)}
+            className="absolute top-6 right-6 z-50 p-3 rounded-full bg-white/10 hover:bg-white/25 text-white transition shadow-soft-lg"
+            aria-label="Close fullscreen view"
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          {product.images.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-50 p-3.5 rounded-full bg-white/10 hover:bg-white/25 text-white transition shadow-soft-lg"
+                aria-label="Previous image"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50 p-3.5 rounded-full bg-white/10 hover:bg-white/25 text-white transition shadow-soft-lg"
+                aria-label="Next image"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-sm font-semibold text-white">
+                {activeImage + 1} / {product.images.length}
+              </div>
+            </>
+          )}
+
+          <div
+            className="relative max-w-5xl max-h-[85vh] w-full h-full flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={product.images[activeImage]}
+              alt={product.name}
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl drop-shadow-2xl"
+            />
           </div>
         </div>
       )}

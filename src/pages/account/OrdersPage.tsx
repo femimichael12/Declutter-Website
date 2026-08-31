@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Package, ChevronDown, Truck, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { formatPrice } from '@/lib/utils';
 import type { Order, OrderItem, OrderStatus } from '@/types';
@@ -26,10 +27,42 @@ export function OrdersPage() {
 
   useEffect(() => {
     async function load() {
-      if (!isSupabaseConfigured || !supabase) { setOrders([]); setLoading(false); return; }
-    if (!session) return;
-      const { data } = await supabase!.from('orders').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-      setOrders(data as Order[] ?? []);
+      if (!session?.user?.id) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      if (db) {
+        try {
+          const q = query(collection(db, 'orders'), where('user_id', '==', session.user.id));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const list: Order[] = [];
+            snap.forEach((d) => {
+              list.push({ id: d.id, ...(d.data() as Omit<Order, 'id'>) });
+            });
+            list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setOrders(list);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn('Firestore orders query fallback:', err);
+        }
+      }
+
+      // Check local storage for placed orders
+      try {
+        const raw = localStorage.getItem(`orders_${session.user.id}`);
+        if (raw) {
+          setOrders(JSON.parse(raw));
+        } else {
+          setOrders([]);
+        }
+      } catch {
+        setOrders([]);
+      }
       setLoading(false);
     }
     load();
@@ -42,8 +75,29 @@ export function OrdersPage() {
     }
     setExpanded(orderId);
     if (!orderItems[orderId]) {
-      const { data } = await supabase!.from('order_items').select('*').eq('order_id', orderId);
-      setOrderItems((prev) => ({ ...prev, [orderId]: data as OrderItem[] ?? [] }));
+      if (db) {
+        try {
+          const q = query(collection(db, 'order_items'), where('order_id', '==', orderId));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const items: OrderItem[] = [];
+            snap.forEach((d) => items.push({ id: d.id, ...(d.data() as Omit<OrderItem, 'id'>) }));
+            setOrderItems((prev) => ({ ...prev, [orderId]: items }));
+            return;
+          }
+        } catch {
+          // fallback
+        }
+      }
+      // Check local order items
+      try {
+        const raw = localStorage.getItem(`order_items_${orderId}`);
+        if (raw) {
+          setOrderItems((prev) => ({ ...prev, [orderId]: JSON.parse(raw) }));
+        }
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -65,7 +119,7 @@ export function OrdersPage() {
   return (
     <div className="space-y-3">
       {orders.map((order) => {
-        const cfg = statusConfig[order.status];
+        const cfg = statusConfig[order.status] ?? statusConfig.pending;
         const StatusIcon = cfg.icon;
         return (
           <div key={order.id} className="card overflow-hidden">
