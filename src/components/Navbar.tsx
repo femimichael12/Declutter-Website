@@ -151,10 +151,10 @@ export function Navbar() {
             </div>
 
             {/* Right icons */}
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex items-center gap-0.5 sm:gap-1 ml-auto flex-shrink-0">
               <Link
                 to="/compare"
-                className="hidden sm:block rounded-lg p-2.5 text-navy-600 hover:bg-navy-100 transition"
+                className="hidden sm:block rounded-lg p-2 sm:p-2.5 text-navy-600 hover:bg-navy-100 transition"
                 aria-label="Compare"
               >
                 <Package className="h-5 w-5" />
@@ -162,7 +162,7 @@ export function Navbar() {
 
               <Link
                 to="/wishlist"
-                className="relative rounded-lg p-2.5 text-navy-600 hover:bg-navy-100 transition"
+                className="relative rounded-lg p-2 sm:p-2.5 text-navy-600 hover:bg-navy-100 transition"
                 aria-label="Wishlist"
               >
                 <Heart className="h-5 w-5" />
@@ -175,7 +175,7 @@ export function Navbar() {
 
               <Link
                 to="/cart"
-                className="relative rounded-lg p-2.5 text-navy-600 hover:bg-navy-100 transition"
+                className="relative rounded-lg p-2 sm:p-2.5 text-navy-600 hover:bg-navy-100 transition"
                 aria-label="Cart"
               >
                 <ShoppingCart className="h-5 w-5" />
@@ -191,7 +191,7 @@ export function Navbar() {
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen((v) => !v)}
-                    className="flex items-center gap-2 rounded-lg p-2.5 text-navy-600 hover:bg-navy-100 transition"
+                    className="flex items-center gap-2 rounded-lg p-1.5 sm:p-2 text-navy-600 hover:bg-navy-100 transition"
                   >
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-royal-600 text-white text-xs font-bold">
                       {profile.full_name?.[0]?.toUpperCase() ?? profile.email[0]?.toUpperCase()}
@@ -248,8 +248,8 @@ export function Navbar() {
               {/* Mobile menu toggle */}
               <button
                 onClick={() => setMobileOpen((v) => !v)}
-                className="md:hidden rounded-lg p-2.5 text-navy-600 hover:bg-navy-100 transition"
-                aria-label="Menu"
+                className="md:hidden rounded-lg p-2 sm:p-2.5 text-navy-600 hover:bg-navy-100 transition"
+                aria-label="Toggle menu"
               >
                 {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
