@@ -88,6 +88,16 @@ export function getFirebaseAuthErrorMessage(error: any): string {
       return 'This action requires recent authentication. Please sign in again.';
     case 'auth/unauthorized-domain':
       return 'This domain is not authorized for Firebase Authentication. Please add this domain to Firebase Console > Authentication > Settings > Authorized domains.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email address using a different sign-in method.';
+    case 'auth/missing-password':
+      return 'Please enter your password.';
+    case 'auth/missing-email':
+      return 'Please enter your email address.';
+    case 'auth/invalid-api-key':
+      return 'Invalid Firebase API key. Please check your environment variables in Vercel or .env.local.';
+    case 'auth/internal-error':
+      return 'An internal authentication error occurred. Please try again.';
     default:
       return error.message || 'An error occurred during authentication.';
   }
