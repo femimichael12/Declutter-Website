@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X } from 'lucide-react';
 import { useSettings } from '@/context/SettingsContext';
@@ -6,10 +7,12 @@ import { useSettings } from '@/context/SettingsContext';
 export function WhatsAppButton() {
   const { settings } = useSettings();
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const isCheckout = location.pathname === '/checkout';
   const number = settings.whatsapp_number.replace(/[^0-9]/g, '');
 
   return (
-    <div className="fixed bottom-6 left-6 z-50">
+    <div className={`fixed ${isCheckout ? 'bottom-20 sm:bottom-6 left-3 sm:left-6' : 'bottom-6 left-4 sm:left-6'} z-50`}>
       <AnimatePresence>
         {open && (
           <motion.div
