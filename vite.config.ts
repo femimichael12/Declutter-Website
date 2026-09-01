@@ -1,7 +1,8 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
-import { handlePaystackInitialize, handlePaystackVerify } from './api/_lib/paystackService';
+import initializeHandler from './api/paystack/initialize';
+import verifyHandler from './api/paystack/verify';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -23,86 +24,70 @@ export default defineConfig(({ mode }) => {
             const parsedUrl = new URL(req.url || '', 'http://localhost');
             const pathname = parsedUrl.pathname;
 
+            // Helper to wrap Node http.ServerResponse to support Vercel res.status().json()
+            function createVercelResponse(rawRes: any) {
+              return {
+                setHeader(name: string, value: string) {
+                  rawRes.setHeader(name, value);
+                  return this;
+                },
+                status(code: number) {
+                  rawRes.statusCode = code;
+                  return {
+                    json(data: any) {
+                      rawRes.setHeader('Content-Type', 'application/json');
+                      rawRes.end(JSON.stringify(data));
+                    },
+                    end() {
+                      rawRes.end();
+                    },
+                  };
+                },
+                json(data: any) {
+                  rawRes.setHeader('Content-Type', 'application/json');
+                  rawRes.end(JSON.stringify(data));
+                },
+                end() {
+                  rawRes.end();
+                },
+              };
+            }
+
             if (pathname === '/api/paystack/initialize') {
-              res.setHeader('Content-Type', 'application/json');
-              res.setHeader('Access-Control-Allow-Origin', '*');
-              res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-              if (req.method === 'OPTIONS') {
-                res.statusCode = 200;
-                res.end();
-                return;
-              }
-
-              if (req.method !== 'POST') {
-                res.statusCode = 405;
-                res.end(JSON.stringify({ status: false, message: 'Method Not Allowed' }));
-                return;
-              }
-
               let bodyStr = '';
-              req.on('data', (chunk) => {
+              req.on('data', (chunk: any) => {
                 bodyStr += chunk;
               });
               req.on('end', async () => {
                 try {
                   const body = bodyStr ? JSON.parse(bodyStr) : {};
-                  const result = await handlePaystackInitialize(body);
-                  res.statusCode = 200;
-                  res.end(JSON.stringify(result));
+                  const wrappedReq = Object.assign(req, { body, query: Object.fromEntries(parsedUrl.searchParams) });
+                  const wrappedRes = createVercelResponse(res);
+                  await initializeHandler(wrappedReq, wrappedRes);
                 } catch (err: any) {
-                  res.statusCode = 400;
-                  res.end(JSON.stringify({ status: false, message: err.message || 'Payment initialization failed' }));
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ status: false, message: err.message || 'Server error' }));
                 }
               });
               return;
             }
 
             if (pathname === '/api/paystack/verify') {
-              res.setHeader('Content-Type', 'application/json');
-              res.setHeader('Access-Control-Allow-Origin', '*');
-              res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-              res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-              if (req.method === 'OPTIONS') {
-                res.statusCode = 200;
-                res.end();
-                return;
-              }
-
-              const refParam = parsedUrl.searchParams.get('reference');
-              if (refParam) {
-                try {
-                  const result = await handlePaystackVerify(refParam);
-                  res.statusCode = 200;
-                  res.end(JSON.stringify(result));
-                } catch (err: any) {
-                  res.statusCode = 400;
-                  res.end(JSON.stringify({ status: false, message: err.message || 'Verification failed' }));
-                }
-                return;
-              }
-
               let bodyStr = '';
-              req.on('data', (chunk) => {
+              req.on('data', (chunk: any) => {
                 bodyStr += chunk;
               });
               req.on('end', async () => {
                 try {
                   const body = bodyStr ? JSON.parse(bodyStr) : {};
-                  const ref = body.reference;
-                  if (!ref) {
-                    res.statusCode = 400;
-                    res.end(JSON.stringify({ status: false, message: 'Reference is required' }));
-                    return;
-                  }
-                  const result = await handlePaystackVerify(ref);
-                  res.statusCode = 200;
-                  res.end(JSON.stringify(result));
+                  const wrappedReq = Object.assign(req, { body, query: Object.fromEntries(parsedUrl.searchParams) });
+                  const wrappedRes = createVercelResponse(res);
+                  await verifyHandler(wrappedReq, wrappedRes);
                 } catch (err: any) {
-                  res.statusCode = 400;
-                  res.end(JSON.stringify({ status: false, message: err.message || 'Verification failed' }));
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ status: false, message: err.message || 'Server error' }));
                 }
               });
               return;
