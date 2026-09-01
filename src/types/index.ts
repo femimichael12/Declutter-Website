@@ -122,6 +122,11 @@ export interface Order {
   coupon_code: string | null;
   payment_method: string | null;
   payment_status: PaymentStatus;
+  payment_reference?: string | null;
+  transaction_reference?: string | null;
+  payment_channel?: string | null;
+  currency?: string;
+  paid_at?: string | null;
   shipping_address: Record<string, unknown> | null;
   billing_address: Record<string, unknown> | null;
   tracking_number: string | null;
