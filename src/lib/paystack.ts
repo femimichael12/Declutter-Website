@@ -165,7 +165,7 @@ export async function openPaystackPopup(options: {
     options.publicKey ||
     import.meta.env.VITE_PAYSTACK_PUBLIC_KEY ||
     import.meta.env.VITE_PAYSTACK_TEST_PUBLIC_KEY ||
-    'pk_test_placeholder';
+    'pk_test_cef00ad657495055d2a7a3300bede797700cfac3';
 
   try {
     const handler = window.PaystackPop.setup({
