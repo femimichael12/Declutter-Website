@@ -112,9 +112,18 @@ export async function initializePaystackTransaction(
     body: JSON.stringify(params),
   });
 
-  const data = await response.json();
+  const rawText = await response.text();
+  let data: any;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw new Error(
+      `Server Error (HTTP ${response.status}): ${rawText.slice(0, 150) || response.statusText || 'Unable to connect to Paystack payment gateway'}`
+    );
+  }
+
   if (!response.ok || !data.status) {
-    throw new Error(data.message || 'Failed to initialize payment.');
+    throw new Error(data.message || 'Failed to initialize Paystack payment.');
   }
 
   return data;
@@ -133,7 +142,16 @@ export async function verifyPaystackPayment(
     },
   });
 
-  const data = await response.json();
+  const rawText = await response.text();
+  let data: any;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw new Error(
+      `Server Error (HTTP ${response.status}): ${rawText.slice(0, 150) || response.statusText || 'Payment verification endpoint unreachable'}`
+    );
+  }
+
   if (!response.ok || !data.status) {
     throw new Error(data.message || 'Payment verification failed.');
   }

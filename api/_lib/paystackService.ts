@@ -33,7 +33,7 @@ export const serverProducts: Record<string, ServerProduct> = {
     id: 'prod-2',
     name: 'Samsung Galaxy S24 Ultra 256GB',
     brand: 'Samsung',
-    price: 1750000,
+    price: 1800000,
     stock: 12,
     condition: 'Brand New',
     images: ['https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=1000&q=80'],
