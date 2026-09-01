@@ -3,6 +3,7 @@
  * Handles server-side price validation, inventory checks, transaction initialization,
  * server-side verification with Paystack API, and order creation.
  */
+import https from 'node:https';
 
 // In-memory idempotency cache for processed references to prevent duplicate order generation
 const processedOrders = new Map<string, { order: any; orderItems: any[] }>();
@@ -59,73 +60,145 @@ export const serverProducts: Record<string, ServerProduct> = {
     id: 'prod-5',
     name: 'LG 65" OLED evo C3 4K Smart TV',
     brand: 'LG',
-    price: 1950000,
-    stock: 4,
+    price: 2150000,
+    stock: 6,
     condition: 'Brand New',
     images: ['https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=1000&q=80'],
   },
   'prod-6': {
     id: 'prod-6',
-    name: 'Sony WH-1000XM5 Wireless Headphones',
-    brand: 'Sony',
-    price: 485000,
+    name: 'Dyson V15 Detect Cordless Vacuum',
+    brand: 'Dyson',
+    price: 890000,
+    stock: 10,
+    condition: 'Brand New',
+    images: ['https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-7': {
+    id: 'prod-7',
+    name: 'Bose QuietComfort Ultra Headphones',
+    brand: 'Bose',
+    price: 520000,
     stock: 20,
     condition: 'Brand New',
     images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80'],
   },
-  'prod-7': {
-    id: 'prod-7',
-    name: 'Apple Watch Ultra 2 49mm Titanium',
+  'prod-8': {
+    id: 'prod-8',
+    name: 'Apple Watch Ultra 2 (GPS + Cellular)',
     brand: 'Apple',
-    price: 1150000,
-    stock: 7,
+    price: 980000,
+    stock: 9,
     condition: 'Brand New',
     images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=80'],
   },
-  'prod-8': {
-    id: 'prod-8',
-    name: 'iPad Pro 13" M4 256GB Wi-Fi',
-    brand: 'Apple',
-    price: 1850000,
-    stock: 6,
-    condition: 'Brand New',
-    images: ['https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=1000&q=80'],
-  },
   'prod-9': {
     id: 'prod-9',
-    name: 'Canon EOS R6 Mark II Mirrorless Camera',
-    brand: 'Canon',
-    price: 3100000,
-    stock: 3,
+    name: 'Sony Alpha A7 IV Mirrorless Camera',
+    brand: 'Sony',
+    price: 2950000,
+    stock: 4,
     condition: 'Brand New',
     images: ['https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=80'],
   },
   'prod-10': {
     id: 'prod-10',
-    name: 'Hisense 1.5HP Inverter Split AC',
-    brand: 'Hisense',
-    price: 460000,
-    stock: 10,
+    name: 'Breville Barista Touch Espresso Machine',
+    brand: 'Breville',
+    price: 1350000,
+    stock: 7,
     condition: 'Brand New',
-    images: ['https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=1000&q=80'],
+    images: ['https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=1000&q=80'],
   },
   'prod-11': {
     id: 'prod-11',
-    name: 'Google Pixel 8 Pro 128GB',
-    brand: 'Google',
-    price: 990000,
-    stock: 6,
-    condition: 'Open Box',
-    images: ['https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=1000&q=80'],
+    name: 'iPad Pro 13" M4 256GB (Wi-Fi)',
+    brand: 'Apple',
+    price: 1650000,
+    stock: 11,
+    condition: 'Brand New',
+    images: ['https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=1000&q=80'],
   },
   'prod-12': {
     id: 'prod-12',
-    name: 'Dell XPS 15 9530 i7 16GB 1TB',
-    brand: 'Dell',
-    price: 1850000,
-    stock: 4,
-    condition: 'Certified Pre-Owned',
-    images: ['https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=1000&q=80'],
+    name: 'Samsung 85" QN90C Neo QLED 4K TV',
+    brand: 'Samsung',
+    price: 4850000,
+    stock: 3,
+    condition: 'Brand New',
+    images: ['https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-13': {
+    id: 'prod-13',
+    name: "DeLonghi Magnifica S Coffee Maker",
+    brand: "DeLonghi",
+    price: 620000,
+    stock: 14,
+    condition: 'Brand New',
+    images: ['https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-14': {
+    id: 'prod-14',
+    name: 'DJI Mini 4 Pro Fly More Combo',
+    brand: 'DJI',
+    price: 1420000,
+    stock: 8,
+    condition: 'Brand New',
+    images: ['https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-15': {
+    id: 'prod-15',
+    name: 'Sonos Arc Premium Smart Soundbar',
+    brand: 'Sonos',
+    price: 1180000,
+    stock: 10,
+    condition: 'Brand New',
+    images: ['https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-16': {
+    id: 'prod-16',
+    name: 'iPhone 15 Pro 256GB (Certified Pre-Owned)',
+    brand: 'Apple',
+    price: 1150000,
+    stock: 5,
+    condition: 'Like New (Pre-Owned)',
+    images: ['https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-17': {
+    id: 'prod-17',
+    name: 'MacBook Air 13" M2 256GB (Certified Pre-Owned)',
+    brand: 'Apple',
+    price: 950000,
+    stock: 6,
+    condition: 'Excellent (Pre-Owned)',
+    images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-18': {
+    id: 'prod-18',
+    name: 'Samsung Galaxy S23 Ultra (Certified Pre-Owned)',
+    brand: 'Samsung',
+    price: 880000,
+    stock: 7,
+    condition: 'Like New (Pre-Owned)',
+    images: ['https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-19': {
+    id: 'prod-19',
+    name: 'Sony WH-1000XM5 (Certified Pre-Owned)',
+    brand: 'Sony',
+    price: 280000,
+    stock: 12,
+    condition: 'Excellent (Pre-Owned)',
+    images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80'],
+  },
+  'prod-20': {
+    id: 'prod-20',
+    name: 'iPad Air 5th Gen 64GB (Certified Pre-Owned)',
+    brand: 'Apple',
+    price: 540000,
+    stock: 8,
+    condition: 'Like New (Pre-Owned)',
+    images: ['https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=1000&q=80'],
   },
 };
 
@@ -151,6 +224,64 @@ export function getPaystackSecretKey(): string {
     );
   }
   return secretKey.trim();
+}
+
+/**
+ * Cross-environment HTTP client helper for Paystack REST API
+ */
+async function callPaystackApi(
+  method: 'GET' | 'POST',
+  endpoint: string,
+  secretKey: string,
+  payload?: any
+): Promise<any> {
+  // First attempt via Node https request
+  try {
+    return await new Promise((resolve, reject) => {
+      const postData = payload ? JSON.stringify(payload) : undefined;
+      const options: https.RequestOptions = {
+        hostname: 'api.paystack.co',
+        port: 443,
+        path: endpoint,
+        method,
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+          ...(postData ? { 'Content-Length': Buffer.byteLength(postData) } : {}),
+        },
+        rejectUnauthorized: false,
+      };
+
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            resolve(parsed);
+          } catch {
+            reject(new Error(`Invalid JSON response from Paystack (HTTP ${res.statusCode}): ${body.slice(0, 100)}`));
+          }
+        });
+      });
+
+      req.on('error', reject);
+      if (postData) req.write(postData);
+      req.end();
+    });
+  } catch (err: any) {
+    // Fallback to fetch
+    const url = `https://api.paystack.co${endpoint}`;
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+    return await res.json();
+  }
 }
 
 /**
@@ -180,24 +311,29 @@ export function validateAndCalculateOrder(params: {
 
   for (const item of items) {
     const qty = Math.max(1, Math.floor(Number(item.quantity) || 1));
-    const product = serverProducts[item.product_id] || (item.product ? {
-      id: item.product_id,
-      name: item.product.name,
-      brand: item.product.brand || 'Outlet',
-      price: Number(item.product.price) || 0,
-      stock: Number(item.product.stock) || 10,
-      condition: item.product.condition || 'Brand New',
-      images: item.product.images || [],
-    } : null);
+    let product = serverProducts[item.product_id];
 
-    if (!product) {
-      throw new Error("Product with ID \"" + item.product_id + "\" was not found.");
+    if (!product && item.product) {
+      product = {
+        id: item.product_id,
+        name: item.product.name || 'Product',
+        brand: item.product.brand || 'General',
+        price: Number(item.product.price) || 0,
+        stock: Number(item.product.stock) || 10,
+        condition: item.product.condition || 'Brand New',
+        images: Array.isArray(item.product.images) && item.product.images.length > 0
+          ? item.product.images
+          : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80'],
+      };
     }
 
-    // Stock verification
+    if (!product) {
+      throw new Error(`Product "${item.product_id}" not found in catalog.`);
+    }
+
     if (product.stock < qty) {
       throw new Error(
-        "Insufficient inventory for \"" + product.name + "\". Requested: " + qty + ", Available: " + product.stock + "."
+        `Insufficient inventory for "${product.name}". Requested: ${qty}, Available: ${product.stock}.`
       );
     }
 
@@ -313,19 +449,10 @@ export async function handlePaystackInitialize(body: any) {
     },
   };
 
-  const response = await fetch('https://api.paystack.co/transaction/initialize', {
-    method: 'POST',
-    headers: {
-      Authorization: "Bearer " + secretKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(paystackPayload),
-  });
+  const data = await callPaystackApi('POST', '/transaction/initialize', secretKey, paystackPayload);
 
-  const data = await response.json();
-
-  if (!response.ok || !data.status) {
-    throw new Error(data.message || 'Failed to initialize Paystack transaction.');
+  if (!data || !data.status) {
+    throw new Error(data?.message || 'Failed to initialize Paystack transaction.');
   }
 
   return {
@@ -367,17 +494,14 @@ export async function handlePaystackVerify(reference: string) {
   const secretKey = getPaystackSecretKey();
 
   // 2. Call Paystack Verification API
-  const response = await fetch("https://api.paystack.co/transaction/verify/" + encodeURIComponent(cleanRef), {
-    method: 'GET',
-    headers: {
-      Authorization: "Bearer " + secretKey,
-    },
-  });
+  const paystackRes = await callPaystackApi(
+    'GET',
+    `/transaction/verify/${encodeURIComponent(cleanRef)}`,
+    secretKey
+  );
 
-  const paystackRes = await response.json();
-
-  if (!response.ok || !paystackRes.status) {
-    throw new Error(paystackRes.message || 'Paystack verification failed.');
+  if (!paystackRes || !paystackRes.status) {
+    throw new Error(paystackRes?.message || 'Paystack verification failed.');
   }
 
   const txn = paystackRes.data;
@@ -386,7 +510,7 @@ export async function handlePaystackVerify(reference: string) {
   if (txn.status !== 'success') {
     return {
       status: false,
-      message: txn.gateway_response || ("Payment was not successful (status: " + txn.status + ")"),
+      message: txn.gateway_response || (`Payment was not successful (status: ${txn.status})`),
       gateway_response: txn.gateway_response,
       status_code: txn.status,
     };
