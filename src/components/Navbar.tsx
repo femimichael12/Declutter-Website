@@ -8,8 +8,7 @@ import {
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useAuth } from '@/context/AuthContext';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { mockProducts } from '@/lib/mockData';
+import { getProducts } from '@/lib/products';
 import type { Product } from '@/types';
 import { Logo } from './Logo';
 import { ProductImage } from './ProductImage';
@@ -65,18 +64,15 @@ export function Navbar() {
       return;
     }
     const timer = setTimeout(async () => {
-      if (!isSupabaseConfigured || !supabase) {
-        const ql = searchQuery.toLowerCase();
-        setSearchResults(mockProducts.filter((p) => p.name.toLowerCase().includes(ql)).slice(0, 6));
-        return;
+      try {
+        const results = await getProducts({
+          search: searchQuery,
+          limit: 6,
+        });
+        setSearchResults(results.filter((p) => p.is_active !== false));
+      } catch (err) {
+        console.error('Navbar search error:', err);
       }
-      const { data } = await supabase
-        .from('products')
-        .select('*')
-        .ilike('name', `%${searchQuery}%`)
-        .eq('is_active', true)
-        .limit(6);
-      setSearchResults((data as Product[]) ?? []);
     }, 200);
     return () => clearTimeout(timer);
   }, [searchQuery]);

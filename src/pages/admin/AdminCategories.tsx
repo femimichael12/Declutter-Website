@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db, isFirebaseConfigured } from '@/lib/firebase';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getCategories } from '@/lib/products';
 import { useToast } from '@/context/ToastContext';
-import { mockProducts, mockCategories, mockCoupons, mockBanners, mockReviews, mockSettings } from '@/lib/mockData';
 import { slugify } from '@/lib/utils';
 import type { Category } from '@/types';
 
@@ -17,32 +18,63 @@ export function AdminCategories() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    if (!isSupabaseConfigured || !supabase) { setCategories(mockCategories); return; }
-    const { data } = await supabase!.from('categories').select('*').order('sort_order');
-    setCategories(data as Category[] ?? []);
+    try {
+      const list = await getCategories();
+      setCategories(list);
+    } catch {
+      toast('Failed to load categories', 'error');
+    }
   }
 
   function openAdd() { setEditing(null); setForm({ name: '', slug: '', icon: '', description: '' }); setShowForm(true); }
   function openEdit(c: Category) { setEditing(c); setForm({ name: c.name, slug: c.slug, icon: c.icon ?? '', description: c.description ?? '' }); setShowForm(true); }
 
   async function save() {
-    if (!form.name) { toast('Name is required', 'error'); return; }
-    const data = { name: form.name, slug: form.slug || slugify(form.name), icon: form.icon || null, description: form.description || null };
-    if (editing) {
-      const { error } = await supabase!.from('categories').update(data).eq('id', editing.id);
-      if (error) toast('Failed to update', 'error'); else toast('Category updated');
+    if (!form.name.trim()) { toast('Name is required', 'error'); return; }
+    const catSlug = form.slug.trim() || slugify(form.name);
+    const data = {
+      name: form.name.trim(),
+      slug: catSlug,
+      icon: form.icon.trim() || 'Package',
+      description: form.description.trim() || null,
+      image_url: null,
+      sort_order: editing ? editing.sort_order : categories.length + 1,
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        if (editing) {
+          await updateDoc(doc(db, 'categories', editing.id), data);
+          toast('Category updated');
+        } else {
+          const newId = `cat-${Date.now()}`;
+          await setDoc(doc(db, 'categories', newId), { id: newId, ...data });
+          toast('Category created');
+        }
+      } catch (err: any) {
+        toast(err.message || 'Failed to save category', 'error');
+      }
     } else {
-      const { error } = await supabase!.from('categories').insert({ ...data, sort_order: categories.length + 1 });
-      if (error) toast('Failed to create', 'error'); else toast('Category created');
+      toast('Category saved locally (configure Firebase to persist)', 'info');
     }
-    setShowForm(false); load();
+
+    setShowForm(false);
+    load();
   }
 
   async function remove(c: Category) {
-    if (!confirm(`Delete "${c.name}"?`)) return;
-    const { error } = await supabase!.from('categories').delete().eq('id', c.id);
-    if (error) toast('Cannot delete — products are using this category', 'error');
-    else { toast('Category deleted', 'info'); load(); }
+    if (!confirm(`Delete category "${c.name}"?`)) return;
+    if (isFirebaseConfigured && db) {
+      try {
+        await deleteDoc(doc(db, 'categories', c.id));
+        toast('Category deleted', 'info');
+      } catch {
+        toast('Failed to delete category', 'error');
+      }
+    } else {
+      toast('Category removed', 'info');
+    }
+    load();
   }
 
   return (

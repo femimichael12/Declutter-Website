@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { DollarSign, ShoppingCart, Package, Users, TrendingUp, ArrowRight } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getProducts } from '@/lib/products';
+import { db, isFirebaseConfigured } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import { formatPrice } from '@/lib/utils';
-import { mockProducts, mockCategories, mockCoupons, mockBanners, mockReviews, mockSettings } from '@/lib/mockData';
 import type { Order, Product } from '@/types';
 
 export function AdminDashboard() {
@@ -22,36 +23,45 @@ export function AdminDashboard() {
 
   useEffect(() => {
     async function load() {
-      if (!isSupabaseConfigured || !supabase) {
-        setStats({ revenue: 0, orders: 0, products: mockProducts.length, customers: 0, pendingOrders: 0, lowStock: mockProducts.filter(p=>p.stock<=5).length });
-        setRecentOrders([]);
-        setTopProducts([...mockProducts].sort((a,b)=>b.sales_count-a.sales_count).slice(0,5));
+      try {
+        const products = await getProducts();
+        let orders: Order[] = [];
+        let customersCount = 0;
+
+        if (isFirebaseConfigured && db) {
+          try {
+            const ordersSnap = await getDocs(collection(db, 'orders'));
+            ordersSnap.forEach((d) => orders.push({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
+
+            const profilesSnap = await getDocs(collection(db, 'profiles'));
+            customersCount = profilesSnap.size;
+          } catch (err) {
+            console.warn('Firestore stats query fallback:', err);
+          }
+        }
+
+        orders.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+        const revenue = orders
+          .filter((o) => o.payment_status === 'paid')
+          .reduce((sum, o) => sum + Number(o.total || 0), 0);
+
+        setStats({
+          revenue,
+          orders: orders.length,
+          products: products.length,
+          customers: customersCount,
+          pendingOrders: orders.filter((o) => o.status === 'pending' || o.status === 'confirmed').length,
+          lowStock: products.filter((p) => p.stock <= 5).length,
+        });
+
+        setRecentOrders(orders.slice(0, 5));
+        setTopProducts([...products].sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0)).slice(0, 5));
+      } catch (err) {
+        console.error('Error loading admin dashboard stats:', err);
+      } finally {
         setLoading(false);
-        return;
       }
-      const [ordersRes, productsRes, profilesRes] = await Promise.all([
-        supabase.from('orders').select('*'),
-        supabase.from('products').select('*'),
-        supabase.from('profiles').select('*').eq('role', 'customer'),
-      ]);
-
-      const orders = ordersRes.data as Order[] ?? [];
-      const products = productsRes.data as Product[] ?? [];
-      const customers = profilesRes.data ?? [];
-
-      const revenue = orders.filter((o) => o.payment_status === 'paid').reduce((sum, o) => sum + Number(o.total), 0);
-
-      setStats({
-        revenue,
-        orders: orders.length,
-        products: products.length,
-        customers: customers.length,
-        pendingOrders: orders.filter((o) => o.status === 'pending' || o.status === 'confirmed').length,
-        lowStock: products.filter((p) => p.stock <= 5).length,
-      });
-      setRecentOrders(orders.slice(0, 5));
-      setTopProducts([...products].sort((a, b) => b.sales_count - a.sales_count).slice(0, 5));
-      setLoading(false);
     }
     load();
   }, []);

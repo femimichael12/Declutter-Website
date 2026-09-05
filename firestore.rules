@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user has admin role in profiles or custom claims
+    function isAdmin() {
+      return isAuthenticated() && 
+        (
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin' ||
+          request.auth.token.admin == true
+        );
+    }
+    
+    // Check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Products catalog: Anyone can view active products; only admins can add, edit, or delete
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Product Specifications
+    match /product_specs/{specId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Product Condition Inspection Reports
+    match /condition_reports/{reportId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // User Profiles
+    match /profiles/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Customer Orders
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && (request.resource.data.user_id == request.auth.uid || request.resource.data.user_id == 'guest');
+      allow update, delete: if isAdmin();
+    }
+
+    // Order Items
+    match /order_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Saved Addresses
+    match /addresses/{addressId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.user_id == request.auth.uid);
+    }
+
+    // User Notifications
+    match /notifications/{notifId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() || isAdmin();
+    }
+
+    // Coupons, Banners, Reviews, and Store Settings
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

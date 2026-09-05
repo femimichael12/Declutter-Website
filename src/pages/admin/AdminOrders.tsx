@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, X, Truck, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { db, isFirebaseConfigured } from '@/lib/firebase';
+import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/context/ToastContext';
-import { mockProducts, mockCategories, mockCoupons, mockBanners, mockReviews, mockSettings } from '@/lib/mockData';
 import { formatPrice } from '@/lib/utils';
 import type { Order, OrderItem, OrderStatus } from '@/types';
 
@@ -33,10 +33,22 @@ export function AdminOrders() {
 
   async function load() {
     setLoading(true);
-    if (!isSupabaseConfigured || !supabase) { setOrders([]); setLoading(false); return; }
-    const { data } = await supabase!.from('orders').select('*').order('created_at', { ascending: false });
-    setOrders(data as Order[] ?? []);
-    setLoading(false);
+    if (!isFirebaseConfigured || !db) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const snap = await getDocs(collection(db, 'orders'));
+      const list: Order[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
+      list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+      setOrders(list);
+    } catch (err) {
+      console.warn('Error loading orders from Firestore:', err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function toggleOrder(id: string) {
@@ -45,18 +57,27 @@ export function AdminOrders() {
       return;
     }
     setExpanded(id);
-    if (!orderItems[id]) {
-      const { data } = await supabase!.from('order_items').select('*').eq('order_id', id);
-      setOrderItems((prev) => ({ ...prev, [id]: data as OrderItem[] ?? [] }));
+    if (!orderItems[id] && isFirebaseConfigured && db) {
+      try {
+        const q = query(collection(db, 'order_items'), where('order_id', '==', id));
+        const snap = await getDocs(q);
+        const items: OrderItem[] = [];
+        snap.forEach((d) => items.push({ id: d.id, ...(d.data() as Omit<OrderItem, 'id'>) }));
+        setOrderItems((prev) => ({ ...prev, [id]: items }));
+      } catch (err) {
+        console.warn('Error loading order items:', err);
+      }
     }
   }
 
   async function updateStatus(orderId: string, status: OrderStatus) {
-    const { error } = await supabase!.from('orders').update({ status }).eq('id', orderId);
-    if (error) toast('Failed to update status', 'error');
-    else {
+    if (!isFirebaseConfigured || !db) return;
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { status, updated_at: new Date().toISOString() });
       toast('Order status updated');
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)));
+    } catch {
+      toast('Failed to update status', 'error');
     }
   }
 

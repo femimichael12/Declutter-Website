@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   ShieldCheck, BadgeCheck,
   Truck, Headphones, Star, Quote,
 } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { mockProducts, mockCategories } from '@/lib/mockData';
+import { getProducts, getCategories } from '@/lib/products';
 import type { Product, Category } from '@/types';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductRow } from '@/components/ProductRow';
 import { SectionHeader } from '@/components/SectionHeader';
 import { ProductGridSkeleton, HeroSkeleton } from '@/components/Skeleton';
 import { HeroCarousel } from '@/components/HeroCarousel';
+import { SocialCarousel } from '@/components/SocialCarousel';
 import * as LucideIcons from 'lucide-react';
 
 const reviews = [
@@ -35,34 +36,29 @@ export function HomePage() {
 
   useEffect(() => {
     async function load() {
-      if (!isSupabaseConfigured || !supabase) {
-        setCategories(mockCategories);
-        setFeatured(mockProducts.filter((p) => p.is_featured));
-        setPreOwned(mockProducts.filter((p) => p.condition !== 'Brand New'));
-        setBrandNew(mockProducts.filter((p) => p.condition === 'Brand New'));
-        setFlashDeals(mockProducts.filter((p) => p.is_flash_deal));
-        setNewArrivals(mockProducts.filter((p) => p.is_new_arrival));
-        setBestSellers(mockProducts.filter((p) => p.is_best_seller));
+      try {
+        const [cats, allProds] = await Promise.all([
+          getCategories(),
+          getProducts(),
+        ]);
+        const activeProds = allProds.filter((p) => p.is_active !== false);
+
+        setCategories(cats);
+        setFeatured(activeProds.filter((p) => p.is_featured));
+        setPreOwned(activeProds.filter((p) => p.condition !== 'Brand New'));
+        setBrandNew(activeProds.filter((p) => p.condition === 'Brand New'));
+        setFlashDeals(activeProds.filter((p) => p.is_flash_deal));
+        setNewArrivals(
+          activeProds
+            .filter((p) => p.is_new_arrival)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        );
+        setBestSellers(activeProds.filter((p) => p.is_best_seller));
+      } catch (err) {
+        console.error('Error loading home page products:', err);
+      } finally {
         setLoading(false);
-        return;
       }
-      const [catRes, featRes, preRes, newRes, flashRes, newArrRes, bestRes] = await Promise.all([
-        supabase.from('categories').select('*').order('sort_order'),
-        supabase.from('products').select('*').eq('is_featured', true).eq('is_active', true).limit(10),
-        supabase.from('products').select('*').neq('condition', 'Brand New').eq('is_active', true).limit(10),
-        supabase.from('products').select('*').eq('condition', 'Brand New').eq('is_active', true).limit(10),
-        supabase.from('products').select('*').eq('is_flash_deal', true).eq('is_active', true).limit(10),
-        supabase.from('products').select('*').eq('is_new_arrival', true).eq('is_active', true).order('created_at', { ascending: false }).limit(10),
-        supabase.from('products').select('*').eq('is_best_seller', true).eq('is_active', true).limit(10),
-      ]);
-      setCategories(catRes.data as Category[] ?? []);
-      setFeatured(featRes.data as Product[] ?? []);
-      setPreOwned(preRes.data as Product[] ?? []);
-      setBrandNew(newRes.data as Product[] ?? []);
-      setFlashDeals(flashRes.data as Product[] ?? []);
-      setNewArrivals(newArrRes.data as Product[] ?? []);
-      setBestSellers(bestRes.data as Product[] ?? []);
-      setLoading(false);
     }
     load();
   }, []);
@@ -259,6 +255,9 @@ export function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* Social Media & Instagram Feed */}
+      <SocialCarousel />
 
       {/* Newsletter */}
       <section className="container-page mt-16">

@@ -38,7 +38,8 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
-  updateUserProfile: (data: { full_name?: string; phone?: string; avatar_url?: string }) => Promise<{ error: string | null }>;
+  updateUserProfile: (data: { full_name?: string; phone?: string; avatar_url?: string; role?: 'customer' | 'admin' }) => Promise<{ error: string | null }>;
+  promoteToAdmin: () => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -48,15 +49,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const defaultAdminEmails = [
+    'ademusiwamichael1@gmail.com',
+  ];
+
+  const adminEmails = [
+    ...defaultAdminEmails,
+    ...(import.meta.env.VITE_ADMIN_EMAILS as string || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  ];
+
+  function checkIsAdminEmail(email?: string | null): boolean {
+    if (!email) return false;
+    const cleanEmail = email.toLowerCase().trim();
+    if (adminEmails.includes(cleanEmail)) return true;
+    return cleanEmail.startsWith('admin@') || cleanEmail.includes('admin');
+  }
+
   // Helper to load or create profile from Firestore or Auth User
   async function fetchOrCreateProfile(firebaseUser: User, customFullName?: string): Promise<Profile> {
+    const isDesignatedAdmin = checkIsAdminEmail(firebaseUser.email);
+    const initialRole = isDesignatedAdmin ? 'admin' : 'customer';
+
     const defaultProfile: Profile = {
       id: firebaseUser.uid,
       email: firebaseUser.email || '',
       full_name: customFullName || firebaseUser.displayName || null,
       phone: firebaseUser.phoneNumber || null,
       avatar_url: firebaseUser.photoURL || null,
-      role: 'customer',
+      role: initialRole,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -71,13 +94,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (snapshot.exists()) {
         const data = snapshot.data() as Profile;
+        let role = data.role || 'customer';
+        if (isDesignatedAdmin && role !== 'admin') {
+          role = 'admin';
+          await setDoc(profileRef, { role: 'admin' }, { merge: true });
+        }
         // If customFullName provided and different, update it
         if (customFullName && data.full_name !== customFullName) {
-          const updated = { ...data, full_name: customFullName, updated_at: new Date().toISOString() };
+          const updated = { ...data, role, full_name: customFullName, updated_at: new Date().toISOString() };
           await setDoc(profileRef, updated, { merge: true });
           return updated;
         }
-        return data;
+        return { ...data, role };
       } else {
         // Create initial document in Firestore
         await setDoc(profileRef, defaultProfile);
@@ -209,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(refreshed);
   }
 
-  async function updateUserProfile(data: { full_name?: string; phone?: string; avatar_url?: string }) {
+  async function updateUserProfile(data: { full_name?: string; phone?: string; avatar_url?: string; role?: 'customer' | 'admin' }) {
     if (!auth?.currentUser || !profile) {
       return { error: 'You must be signed in to update your profile.' };
     }
@@ -237,6 +265,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function promoteToAdmin(): Promise<{ error: string | null }> {
+    if (!auth?.currentUser && !user) {
+      return { error: 'Please sign in first.' };
+    }
+    setProfile((prev) => (prev ? { ...prev, role: 'admin' } : {
+      id: user?.uid || 'admin',
+      email: user?.email || 'ademusiwamichael1@gmail.com',
+      full_name: user?.displayName || 'Administrator',
+      phone: null,
+      avatar_url: null,
+      role: 'admin',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    if (db && auth?.currentUser) {
+      try {
+        const profileRef = doc(db, 'profiles', auth.currentUser.uid);
+        await setDoc(profileRef, { role: 'admin', updated_at: new Date().toISOString() }, { merge: true });
+      } catch (err) {
+        console.warn('Firestore profile sync note:', err);
+      }
+    }
+    return { error: null };
+  }
+
   const session: AuthSession | null = user
     ? {
         user: {
@@ -253,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         profile,
         loading,
-        isAdmin: profile?.role === 'admin',
+        isAdmin: profile?.role === 'admin' || checkIsAdminEmail(user?.email),
         signIn,
         signUp,
         signInWithGoogle,
@@ -261,6 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         refreshProfile,
         updateUserProfile,
+        promoteToAdmin,
       }}
     >
       {children}

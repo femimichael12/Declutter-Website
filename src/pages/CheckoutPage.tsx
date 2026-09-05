@@ -33,6 +33,7 @@ import {
   verifyPaystackPayment,
   openPaystackPopup,
 } from '@/lib/paystack';
+import { decrementProductStock } from '@/lib/products';
 import type { Address, Coupon, OrderStatus, PaymentStatus } from '@/types';
 import { ProductImage } from '@/components/ProductImage';
 
@@ -235,8 +236,8 @@ export function CheckoutPage() {
       toast('Invalid coupon code', 'error');
       return;
     }
-    if (subtotal < found.min_order_amount) {
-      toast(`Minimum order amount for this coupon is ${formatPrice(found.min_order_amount)}`, 'error');
+    if (subtotal < (found.min_order || 0)) {
+      toast(`Minimum order amount for this coupon is ${formatPrice(found.min_order || 0)}`, 'error');
       return;
     }
     setAppliedCoupon(found);
@@ -272,6 +273,10 @@ export function CheckoutPage() {
         setConfirmedItems(verifyRes.order_items || activeItems);
         setOrderId(verifyRes.order.id);
         setPaystackState('idle');
+
+        // Atomically decrement stock in Firestore for all purchased products
+        await decrementProductStock(activeItems.map((i) => ({ productId: i.product_id, quantity: i.quantity })));
+
         clearCart();
         setStep('confirmation');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -347,8 +352,8 @@ export function CheckoutPage() {
           phone: addr.phone || profile?.phone || '',
         },
         items: payloadItems,
-        shipping_address: effAddress,
-        billing_address: billingSame ? effAddress : null,
+        shipping_address: effAddress as unknown as Record<string, unknown>,
+        billing_address: billingSame ? (effAddress as unknown as Record<string, unknown>) : null,
         delivery_option: deliveryOption,
         coupon_code: appliedCoupon?.code ?? null,
         callback_url: window.location.origin + '/checkout',
@@ -450,6 +455,9 @@ export function CheckoutPage() {
           console.warn('Firestore order placement fallback:', err);
         }
       }
+
+      // Decrement stock in Firestore
+      await decrementProductStock(activeItems.map((i) => ({ productId: i.product_id, quantity: i.quantity })));
 
       setOrderId(createdOrderId);
       setConfirmedOrder({

@@ -2,8 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronDown, Check } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { mockProducts, mockCategories } from '@/lib/mockData';
+import { getProducts, getCategories } from '@/lib/products';
 import type { Product, Category, Condition } from '@/types';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductGridSkeleton } from '@/components/Skeleton';
@@ -39,19 +38,18 @@ export function ProductsPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      if (!isSupabaseConfigured || !supabase) {
-        setProducts(mockProducts);
-        setCategories(mockCategories);
+      try {
+        const [prodList, catList] = await Promise.all([
+          getProducts(),
+          getCategories(),
+        ]);
+        setProducts(prodList.filter((p) => p.is_active !== false));
+        setCategories(catList);
+      } catch (err) {
+        console.error('Failed to load products page data:', err);
+      } finally {
         setLoading(false);
-        return;
       }
-      const [prodRes, catRes] = await Promise.all([
-        supabase.from('products').select('*').eq('is_active', true),
-        supabase.from('categories').select('*').order('sort_order'),
-      ]);
-      setProducts(prodRes.data as Product[] ?? []);
-      setCategories(catRes.data as Category[] ?? []);
-      setLoading(false);
     }
     load();
   }, []);
